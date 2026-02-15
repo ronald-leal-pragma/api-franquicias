@@ -1,5 +1,6 @@
 package com.nequi.franchise.infrastructure.driven_adapters.mongo_repository;
 
+import com.nequi.franchise.domain.exception.ResourceNotFoundException;
 import com.nequi.franchise.domain.model.franchise.Branch;
 import com.nequi.franchise.domain.model.franchise.BranchProductResult;
 import com.nequi.franchise.domain.model.franchise.Franchise;
@@ -48,7 +49,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Franchise not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia no encontrada con ID: " + franchiseId)))
                 .map(mapper::toEntity);
     }
 
@@ -64,7 +65,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
                 .map(mapper::toEntity);
     }
 
@@ -78,7 +79,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
                 .map(mapper::toEntity);
     }
 
@@ -116,7 +117,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Franchise not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia no encontrada con ID: " + franchiseId)))
                 .map(mapper::toEntity);
     }
 
@@ -128,7 +129,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
                 .map(mapper::toEntity);
     }
 
@@ -151,7 +152,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new RuntimeException("Product not found")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Producto no encontrado")))
                 .map(mapper::toEntity);
     }
 }

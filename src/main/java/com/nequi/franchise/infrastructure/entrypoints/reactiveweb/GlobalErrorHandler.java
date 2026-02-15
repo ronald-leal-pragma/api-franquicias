@@ -22,17 +22,14 @@ public class GlobalErrorHandler {
     public Mono<ServerResponse> handleError(Throwable error, ServerRequest request) {
         log.error("Error procesando request a: {} - Error: {}", request.path(), error.getMessage(), error);
 
-        if (error instanceof ValidationException) {
-            return handleValidationException((ValidationException) error, request);
-        } else if (error instanceof ResourceNotFoundException) {
-            return handleResourceNotFoundException((ResourceNotFoundException) error, request);
-        } else if (error instanceof BusinessException) {
-            return handleBusinessException((BusinessException) error, request);
-        } else if (error instanceof DomainException) {
-            return handleDomainException((DomainException) error, request);
-        } else {
-            return handleGenericException(error, request);
-        }
+        return switch (error) {
+            case ValidationException validationException -> handleValidationException(validationException, request);
+            case ResourceNotFoundException resourceNotFoundException ->
+                    handleResourceNotFoundException(resourceNotFoundException, request);
+            case BusinessException businessException -> handleBusinessException(businessException, request);
+            case DomainException domainException -> handleDomainException(domainException, request);
+            default -> handleGenericException(request);
+        };
     }
 
     private Mono<ServerResponse> handleValidationException(ValidationException ex, ServerRequest request) {
@@ -91,8 +88,7 @@ public class GlobalErrorHandler {
                 .bodyValue(errorResponse);
     }
 
-    private Mono<ServerResponse> handleGenericException(Throwable ex, ServerRequest request) {
-        // No exponer detalles técnicos al cliente
+    private Mono<ServerResponse> handleGenericException(ServerRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .code("INTERNAL_ERROR")
                 .message("Ha ocurrido un error procesando la solicitud")

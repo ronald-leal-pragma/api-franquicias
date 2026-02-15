@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.BusinessException;
 import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Branch;
 import com.nequi.franchise.domain.model.franchise.Franchise;
@@ -16,6 +17,18 @@ public class AddBranchUseCase {
             return Mono.error(new ValidationException("El nombre de la sucursal no puede estar vacío"));
         }
 
-        return gateway.addBranch(franchiseId, branch);
+        return gateway.findById(franchiseId)
+                .flatMap(franchise -> {
+                    boolean branchExists = franchise.getBranches().stream()
+                            .anyMatch(b -> b.getName().equalsIgnoreCase(branch.getName()));
+
+                    if (branchExists) {
+                        return Mono.error(new BusinessException(
+                            "Ya existe una sucursal con el nombre '" + branch.getName() + "' en esta franquicia"
+                        ));
+                    }
+
+                    return gateway.addBranch(franchiseId, branch);
+                });
     }
 }

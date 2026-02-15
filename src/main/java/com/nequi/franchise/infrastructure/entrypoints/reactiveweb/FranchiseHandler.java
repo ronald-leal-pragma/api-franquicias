@@ -19,6 +19,9 @@ import java.net.URI;
 @RequiredArgsConstructor
 public class FranchiseHandler {
     private static final String BASE_PATH = "/api/franchises";
+    private static final String FRANCHISE_ID = "franchiseId";
+    private static final String BRANCH_NAME = "branchName";
+    private static final String PRODUCT_NAME = "productName";
 
     private final CreateFranchiseUseCase createFranchiseUseCase;
     private final AddBranchUseCase addBranchUseCase;
@@ -41,7 +44,7 @@ public class FranchiseHandler {
                     return createFranchiseUseCase.apply(franchiseDomain);
                 })
                 .flatMap(savedFranchise -> ServerResponse
-                        .created(URI.create("/api/franchises/" + savedFranchise.getId()))
+                        .created(URI.create(BASE_PATH + savedFranchise.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(savedFranchise)
                 )
@@ -49,7 +52,7 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> addBranch(ServerRequest request) {
-        String franchiseId = request.pathVariable("franchiseId");
+        String franchiseId = request.pathVariable(FRANCHISE_ID);
 
         return request.bodyToMono(AddBranchRequest.class)
                 .flatMap(dto -> {
@@ -61,8 +64,8 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> addProduct(ServerRequest request) {
-        String franchiseId = request.pathVariable("franchiseId");
-        String branchName = request.pathVariable("branchName");
+        String franchiseId = request.pathVariable(FRANCHISE_ID);
+        String branchName = request.pathVariable(BRANCH_NAME);
 
         return request.bodyToMono(AddProductRequest.class)
                 .flatMap(dto -> {
@@ -77,9 +80,9 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> removeProduct(ServerRequest request) {
-        String franchiseId = request.pathVariable("franchiseId");
-        String branchName = request.pathVariable("branchName");
-        String productName = request.pathVariable("productName");
+        String franchiseId = request.pathVariable(FRANCHISE_ID);
+        String branchName = request.pathVariable(BRANCH_NAME);
+        String productName = request.pathVariable(PRODUCT_NAME);
 
         return removeProductUseCase.apply(franchiseId, branchName, productName)
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
@@ -87,9 +90,9 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> updateStock(ServerRequest request) {
-        String franchiseId = request.pathVariable("franchiseId");
-        String branchName = request.pathVariable("branchName");
-        String productName = request.pathVariable("productName");
+        String franchiseId = request.pathVariable(FRANCHISE_ID);
+        String branchName = request.pathVariable(BRANCH_NAME);
+        String productName = request.pathVariable(PRODUCT_NAME);
 
         return request.bodyToMono(UpdateStockRequest.class)
                 .flatMap(dto -> updateStockUseCase.apply(franchiseId, branchName, productName, dto.getStock()))
@@ -98,7 +101,7 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> getMaxStockProducts(ServerRequest request) {
-        String franchiseId = request.pathVariable("franchiseId");
+        String franchiseId = request.pathVariable(FRANCHISE_ID);
 
         return ServerResponse.ok()
                 .body(findMaxStockUseCase.apply(franchiseId), BranchProductResult.class)
@@ -107,7 +110,7 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> updateFranchiseName(ServerRequest request) {
-        String id = request.pathVariable("franchiseId");
+        String id = request.pathVariable(FRANCHISE_ID);
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateFranchiseNameUseCase.apply(id, dto.getName()))
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
@@ -115,8 +118,8 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> updateBranchName(ServerRequest request) {
-        String id = request.pathVariable("franchiseId");
-        String branchName = request.pathVariable("branchName");
+        String id = request.pathVariable(FRANCHISE_ID);
+        String branchName = request.pathVariable(BRANCH_NAME);
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateBranchNameUseCase.apply(id, branchName, dto.getName()))
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
@@ -124,9 +127,9 @@ public class FranchiseHandler {
     }
 
     public Mono<ServerResponse> updateProductName(ServerRequest request) {
-        String id = request.pathVariable("franchiseId");
-        String branchName = request.pathVariable("branchName");
-        String productName = request.pathVariable("productName");
+        String id = request.pathVariable(FRANCHISE_ID);
+        String branchName = request.pathVariable(BRANCH_NAME);
+        String productName = request.pathVariable(PRODUCT_NAME);
 
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateProductNameUseCase.apply(id, branchName, productName, dto.getName()))

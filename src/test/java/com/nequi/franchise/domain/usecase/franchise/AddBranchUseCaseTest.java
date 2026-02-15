@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.BusinessException;
 import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Branch;
 import com.nequi.franchise.domain.model.franchise.Franchise;
@@ -13,6 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+
+import java.util.ArrayList;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,6 +45,7 @@ class AddBranchUseCaseTest {
         franchise = Franchise.builder()
                 .id(franchiseId)
                 .name("Franquicia Test")
+                .branches(new ArrayList<>())
                 .build();
     }
 
@@ -49,6 +53,8 @@ class AddBranchUseCaseTest {
     @DisplayName("Debe agregar una sucursal exitosamente cuando el nombre es valido")
     void shouldAddBranchSuccessfully() {
         // Arrange
+        when(gateway.findById(eq(franchiseId)))
+                .thenReturn(Mono.just(franchise));
         when(gateway.addBranch(eq(franchiseId), any(Branch.class)))
                 .thenReturn(Mono.just(franchise));
 
@@ -60,6 +66,7 @@ class AddBranchUseCaseTest {
                 .expectNext(franchise)
                 .verifyComplete();
 
+        verify(gateway, times(1)).findById(franchiseId);
         verify(gateway, times(1)).addBranch(franchiseId, branch);
     }
 
@@ -117,6 +124,30 @@ class AddBranchUseCaseTest {
                                 throwable.getMessage().equals("El nombre de la sucursal no puede estar vacío"))
                 .verify();
 
+        verify(gateway, never()).addBranch(any(), any());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar error de negocio cuando ya existe una sucursal con el mismo nombre")
+    void shouldThrowBusinessExceptionWhenBranchAlreadyExists() {
+        // Arrange
+        Branch existingBranch = Branch.builder().name("Sucursal Centro").build();
+        franchise.getBranches().add(existingBranch);
+
+        when(gateway.findById(eq(franchiseId)))
+                .thenReturn(Mono.just(franchise));
+
+        // Act
+        Mono<Franchise> result = addBranchUseCase.apply(franchiseId, branch);
+
+        // Assert
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable ->
+                        throwable instanceof BusinessException &&
+                                throwable.getMessage().contains("Ya existe una sucursal con el nombre"))
+                .verify();
+
+        verify(gateway, times(1)).findById(franchiseId);
         verify(gateway, never()).addBranch(any(), any());
     }
 }
