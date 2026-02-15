@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,8 +76,8 @@ class UpdateProductNameUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("New name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nuevo nombre no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).updateProductName(anyString(), anyString(), anyString(), anyString());
@@ -93,8 +95,8 @@ class UpdateProductNameUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("New name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nuevo nombre no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).updateProductName(anyString(), anyString(), anyString(), anyString());
@@ -112,8 +114,8 @@ class UpdateProductNameUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("New name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nuevo nombre no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).updateProductName(anyString(), anyString(), anyString(), anyString());

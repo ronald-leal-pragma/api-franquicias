@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,8 +66,8 @@ class CreateFranchiseUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Franchise name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la franquicia no puede estar vacío"))
                 .verify();
 
         verify(franchiseGateway, never()).saveFranchise(any());
@@ -84,8 +85,8 @@ class CreateFranchiseUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Franchise name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la franquicia no puede estar vacío"))
                 .verify();
 
         verify(franchiseGateway, never()).saveFranchise(any());
@@ -103,8 +104,8 @@ class CreateFranchiseUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Franchise name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la franquicia no puede estar vacío"))
                 .verify();
 
         verify(franchiseGateway, never()).saveFranchise(any());

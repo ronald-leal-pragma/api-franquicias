@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.franchise.Product;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
@@ -12,7 +13,7 @@ public class AddProductUseCase {
 
     public Mono<Franchise> apply(String franchiseId, String branchName, Product product) {
         if (product.getStock() != null && product.getStock() < 0) {
-            return Mono.error(new IllegalArgumentException("Stock cannot be negative"));
+            return Mono.error(new ValidationException("El stock no puede ser negativo"));
         }
         return gateway.addProduct(franchiseId, branchName, product);
     }

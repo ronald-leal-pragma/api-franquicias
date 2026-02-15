@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ public class CreateFranchiseUseCase {
 
     public Mono<Franchise> apply(Franchise franchise) {
         if (franchise.getName() == null || franchise.getName().trim().isEmpty()) {
-            return Mono.error(new IllegalArgumentException("Franchise name cannot be empty"));
+            return Mono.error(new ValidationException("El nombre de la franquicia no puede estar vacío"));
         }
 
         return franchiseGateway.saveFranchise(franchise);

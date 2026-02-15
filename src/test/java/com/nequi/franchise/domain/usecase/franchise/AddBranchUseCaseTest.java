@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Branch;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
@@ -74,8 +75,8 @@ class AddBranchUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Branch name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la sucursal no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).addBranch(any(), any());
@@ -93,8 +94,8 @@ class AddBranchUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Branch name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la sucursal no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).addBranch(any(), any());
@@ -112,8 +113,8 @@ class AddBranchUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Branch name cannot be empty"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El nombre de la sucursal no puede estar vacío"))
                 .verify();
 
         verify(gateway, never()).addBranch(any(), any());

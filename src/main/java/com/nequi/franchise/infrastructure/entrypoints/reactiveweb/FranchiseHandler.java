@@ -19,13 +19,6 @@ import java.net.URI;
 @RequiredArgsConstructor
 public class FranchiseHandler {
     private static final String BASE_PATH = "/api/franchises";
-    private static final String BRANCH_PATH = BASE_PATH + "/{franchiseId}/branches";
-    private static final String PRODUCT_PATH = BRANCH_PATH + "/{branchName}/products";
-    private static final String STOCK_PATH = PRODUCT_PATH + "/{productName}/stock";
-    private static final String MAX_STOCK_PATH = BASE_PATH + "/{franchiseId}/products/max-stock";
-    private static final String UPDATE_FRANCHISE_NAME_PATH = BASE_PATH + "/{franchiseId}";
-    private static final String UPDATE_BRANCH_NAME_PATH = BRANCH_PATH + "/{branchName}";
-    private static final String UPDATE_PRODUCT_NAME_PATH = PRODUCT_PATH + "/{productName}/rename";
 
     private final CreateFranchiseUseCase createFranchiseUseCase;
     private final AddBranchUseCase addBranchUseCase;
@@ -36,6 +29,7 @@ public class FranchiseHandler {
     private final UpdateFranchiseNameUseCase updateFranchiseNameUseCase;
     private final UpdateBranchNameUseCase updateBranchNameUseCase;
     private final UpdateProductNameUseCase updateProductNameUseCase;
+    private final GlobalErrorHandler errorHandler;
 
     public Mono<ServerResponse> createFranchise(ServerRequest request) {
         return request.bodyToMono(FranchiseRequest.class)
@@ -51,7 +45,7 @@ public class FranchiseHandler {
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(savedFranchise)
                 )
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> addBranch(ServerRequest request) {
@@ -63,7 +57,7 @@ public class FranchiseHandler {
                     return addBranchUseCase.apply(franchiseId, branch);
                 })
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> addProduct(ServerRequest request) {
@@ -79,7 +73,7 @@ public class FranchiseHandler {
                     return addProductUseCase.apply(franchiseId, branchName, product);
                 })
                 .flatMap(saved -> ServerResponse.ok().bodyValue(saved))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> removeProduct(ServerRequest request) {
@@ -89,7 +83,7 @@ public class FranchiseHandler {
 
         return removeProductUseCase.apply(franchiseId, branchName, productName)
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
-                .onErrorResume(e -> ServerResponse.notFound().build());
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> updateStock(ServerRequest request) {
@@ -100,7 +94,7 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateStockRequest.class)
                 .flatMap(dto -> updateStockUseCase.apply(franchiseId, branchName, productName, dto.getStock()))
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> getMaxStockProducts(ServerRequest request) {
@@ -108,7 +102,8 @@ public class FranchiseHandler {
 
         return ServerResponse.ok()
                 .body(findMaxStockUseCase.apply(franchiseId), BranchProductResult.class)
-                .switchIfEmpty(ServerResponse.notFound().build());
+                .switchIfEmpty(ServerResponse.notFound().build())
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> updateFranchiseName(ServerRequest request) {
@@ -116,7 +111,7 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateFranchiseNameUseCase.apply(id, dto.getName()))
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> updateBranchName(ServerRequest request) {
@@ -125,7 +120,7 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateBranchNameUseCase.apply(id, branchName, dto.getName()))
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 
     public Mono<ServerResponse> updateProductName(ServerRequest request) {
@@ -136,6 +131,6 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateNameRequest.class)
                 .flatMap(dto -> updateProductNameUseCase.apply(id, branchName, productName, dto.getName()))
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
-                .onErrorResume(e -> ServerResponse.badRequest().bodyValue(e.getMessage()));
+                .onErrorResume(error -> errorHandler.handleError(error, request));
     }
 }

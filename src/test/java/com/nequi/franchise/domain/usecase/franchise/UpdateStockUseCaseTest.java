@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,8 +93,8 @@ class UpdateStockUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Stock cannot be negative"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El stock no puede ser negativo"))
                 .verify();
 
         verify(gateway, never()).updateStock(anyString(), anyString(), anyString(), anyInt());
@@ -111,8 +112,8 @@ class UpdateStockUseCaseTest {
         // Assert
         StepVerifier.create(result)
                 .expectErrorMatches(throwable ->
-                        throwable instanceof IllegalArgumentException &&
-                                throwable.getMessage().equals("Stock cannot be negative"))
+                        throwable instanceof ValidationException &&
+                                throwable.getMessage().equals("El stock no puede ser negativo"))
                 .verify();
 
         verify(gateway, never()).updateStock(anyString(), anyString(), anyString(), anyInt());
