@@ -1,21 +1,32 @@
 package com.nequi.franchise.infrastructure.driven_adapters.mongo_repository;
 
 import com.nequi.franchise.domain.model.franchise.Branch;
+import com.nequi.franchise.domain.model.franchise.BranchProductResult;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.franchise.Product;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Collections;
+import java.util.Comparator;
 
 @Repository
 @RequiredArgsConstructor
 public class FranchiseRepositoryAdapter implements FranchiseGateway {
     private final FranchiseDataRepository repository;
+    private final ReactiveMongoTemplate mongoTemplate;
     private final FranchiseMapper mapper;
 
     @Override
-    public Mono<Franchise> save(Franchise franchise) {
+    public Mono<Franchise> saveFranchise(Franchise franchise) {
         return Mono.just(franchise)
                 .map(mapper::toDocument)
                 .flatMap(repository::save)
@@ -29,17 +40,118 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
     }
 
     @Override
-    public Mono<Void> updateStock(String franchiseId, String branchName, String productName, Integer stock) {
-        return Mono.empty(); // TODO: Implementar con ReactiveMongoTemplate
+    public Mono<Franchise> addBranch(String franchiseId, Branch branch) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId));
+
+        Update update = new Update().push("branches", mapper.toBranchDocument(branch));
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Franchise not found")))
+                .map(mapper::toEntity);
     }
 
     @Override
-    public Mono<Void> addBranch(String franchiseId, Branch branch) {
-        return Mono.empty(); // TODO: Implementar con $push
+    public Mono<Franchise> addProduct(String franchiseId, String branchName, Product product) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.name").is(branchName));
+
+        Update update = new Update().push("branches.$[elem].products", mapper.toProductDocument(product));
+
+        update.filterArray(Criteria.where("elem.name").is(branchName));
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .map(mapper::toEntity);
     }
 
     @Override
-    public Mono<Void> addProduct(String franchiseId, String branchName, Product product) {
-        return Mono.empty(); // TODO: Implementar con arrayFilters
+    public Mono<Franchise> removeProduct(String franchiseId, String branchName, String productName) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.name").is(branchName));
+
+        Update update = new Update().pull("branches.$.products", Collections.singletonMap("name", productName));
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .map(mapper::toEntity);
+    }
+
+    @Override
+    public Mono<Franchise> updateStock(String franchiseId, String branchName, String productName, Integer newStock) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.name").is(branchName)
+                .and("branches.products.name").is(productName));
+
+        Update update = new Update().set("branches.$[b].products.$[p].stock", newStock);
+
+        return getFranchiseMono(branchName, productName, query, update);
+    }
+
+    @Override
+    public Flux<BranchProductResult> findMaxStockByBranch(String franchiseId) {
+        return repository.findById(franchiseId)
+                .map(mapper::toEntity)
+                .flatMapMany(franchise -> Flux.fromIterable(franchise.getBranches()))
+                .map(branch -> {
+                    Product maxProduct = branch.getProducts().stream()
+                            .max(Comparator.comparingInt(Product::getStock))
+                            .orElse(null);
+
+                    return new BranchProductResult(branch.getName(), maxProduct);
+                })
+                .filter(result -> result.getProduct() != null);
+    }
+
+    @Override
+    public Mono<Franchise> updateFranchiseName(String franchiseId, String newName) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId));
+        Update update = new Update().set("name", newName);
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Franchise not found")))
+                .map(mapper::toEntity);
+    }
+
+    @Override
+    public Mono<Franchise> updateBranchName(String franchiseId, String currentName, String newName) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId).and("branches.name").is(currentName));
+        Update update = new Update().set("branches.$.name", newName);
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Franchise or Branch not found")))
+                .map(mapper::toEntity);
+    }
+
+    @Override
+    public Mono<Franchise> updateProductName(String franchiseId, String branchName, String currentName, String newName) {
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.name").is(branchName)
+                .and("branches.products.name").is(currentName));
+
+        Update update = new Update().set("branches.$[b].products.$[p].name", newName);
+
+        return getFranchiseMono(branchName, currentName, query, update);
+    }
+
+    @NonNull
+    private Mono<Franchise> getFranchiseMono(String branchName, String currentName, Query query, Update update) {
+        update.filterArray(Criteria.where("b.name").is(branchName));
+        update.filterArray(Criteria.where("p.name").is(currentName));
+
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new RuntimeException("Product not found")))
+                .map(mapper::toEntity);
     }
 }

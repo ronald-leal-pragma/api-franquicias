@@ -1,20 +1,32 @@
 package com.nequi.franchise.domain.model.gateway;
 
 import com.nequi.franchise.domain.model.franchise.Branch;
+import com.nequi.franchise.domain.model.franchise.BranchProductResult;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.franchise.Product;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface FranchiseGateway {
-    // Operaciones a nivel de Franquicia
-    Mono<Franchise> save(Franchise franchise);
+
+    Mono<Franchise> saveFranchise(Franchise franchise);
+
     Mono<Franchise> findById(String id);
 
-    // Operaciones atómicas sobre elementos internos (Aunque sean internos, el Gateway expone la intención)
-    // Nota: La implementación en infraestructura usará consultas específicas de Mongo para no traer todo el objeto
-    Mono<Void> updateStock(String franchiseId, String branchName, String productName, Integer stock);
+    Mono<Franchise> addBranch(String franchiseId, Branch branch);
 
-    Mono<Void> addBranch(String franchiseId, Branch branch);
+    Mono<Franchise> addProduct(String franchiseId, String branchName, Product product);
 
-    Mono<Void> addProduct(String franchiseId, String branchName, Product product);
+    Mono<Franchise> removeProduct(String franchiseId, String branchName, String productName);
+
+    Mono<Franchise> updateStock(String franchiseId, String branchName, String productName, Integer newStock);
+
+    Flux<BranchProductResult> findMaxStockByBranch(String franchiseId);
+
+    Mono<Franchise> updateFranchiseName(String franchiseId, String newName);
+
+    Mono<Franchise> updateBranchName(String franchiseId, String currentName, String newName);
+
+    Mono<Franchise> updateProductName(String franchiseId, String branchName, String currentName, String newName);
+
 }
