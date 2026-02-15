@@ -16,9 +16,6 @@
 .DS_Store
 Thumbs.db
 
-# Gradle wrapper
-gradle/wrapper/gradle-wrapper.jar
-
 # Temporary files
 out/
 
