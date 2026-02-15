@@ -117,6 +117,3 @@ FAQ — ejecución local
 - ¿Qué pasa si no tengo Docker? Puedes apuntar la aplicación a un MongoDB remoto o local ya instalado modificando `spring.data.mongodb.uri`.
 - ¿Qué versión de MongoDB usar? Se recomienda usar la 6.x o la versión que el equipo defina; actualmente no está fijada en `build.gradle`.
 
-Si quieres, puedo:
-- Añadir un `docker-compose.yml` en el repositorio y un script `scripts/start-dev.ps1` para facilitar el arranque.
-- Añadir ejemplos de `application-dev.properties` y `.env` con variables sin secretos reales.
