@@ -1,0 +1,36 @@
+# Gradle build output
+/build/
+/.gradle/
+
+# Eclipse/IntelliJ files
+/.idea/
+*.iml
+
+# Java class files
+*.class
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Gradle wrapper
+gradle/wrapper/gradle-wrapper.jar
+
+# Temporary files
+out/
+
+# Maven local repository (if present)
+/.mvn/
+
+# Application properties with secrets (if any)
+#src/main/resources/application.properties
+
+# Other
+.vscode/
+
+# Keep Git attributes and ignore file themselves tracked
+!/.gitattributes
+!/.gitignore
