@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.model.franchise;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,10 +13,13 @@ import java.util.List;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Representa una sucursal de la franquicia")
 public class Branch {
 
+    @Schema(description = "Nombre de la sucursal", example = "Sucursal Centro")
     private String name;
 
     @Builder.Default
+    @Schema(description = "Lista de productos disponibles en la sucursal")
     private List<Product> products = new ArrayList<>();
 }
