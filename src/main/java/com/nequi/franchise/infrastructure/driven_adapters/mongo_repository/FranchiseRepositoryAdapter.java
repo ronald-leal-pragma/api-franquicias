@@ -121,7 +121,8 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     public Flux<BranchProductResult> findMaxStockByBranch(String franchiseId) {
-        return repository.findById(franchiseId)
+        return resilienceService.executeFluxWithResilience(
+                repository.findById(franchiseId)
                 .map(mapper::toEntity)
                 .flatMapMany(franchise -> Flux.fromIterable(franchise.getBranches()))
                 .map(branch -> {
@@ -131,7 +132,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
                     return new BranchProductResult(branch.getName(), maxProduct);
                 })
-                .filter(result -> result.getProduct() != null);
+                .filter(result -> result.getProduct() != null),"findMaxStockByBranch");
     }
 
     @Override

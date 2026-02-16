@@ -13,22 +13,17 @@ public class AddBranchUseCase {
     private final FranchiseGateway franchiseGateway;
 
     public Mono<Franchise> apply(String franchiseId, Branch branch) {
-        if (branch.getName() == null || branch.getName().isBlank()) {
-            return Mono.error(new ValidationException("El nombre de la sucursal no puede estar vacío"));
-        }
-
-        return franchiseGateway.findById(franchiseId)
-                .flatMap(franchise -> {
-                    boolean branchExists = franchise.getBranches().stream()
-                            .anyMatch(b -> b.getName().equalsIgnoreCase(branch.getName()));
-
-                    if (branchExists) {
-                        return Mono.error(new BusinessException(
+        return Mono.justOrEmpty(branch.getName())
+                .filter(name -> !name.isBlank())
+                .switchIfEmpty(Mono.error(new ValidationException("El nombre de la sucursal no puede estar vacío")))
+                .flatMap(name -> franchiseGateway.findById(franchiseId))
+                .flatMap(franchise -> franchise.getBranches().stream()
+                        .filter(b -> b.getName().equalsIgnoreCase(branch.getName()))
+                        .findFirst()
+                        .map(existingBranch -> Mono.<Franchise>error(new BusinessException(
                                 "Ya existe una sucursal con el nombre '" + branch.getName() + "' en esta franquicia"
-                        ));
-                    }
-
-                    return franchiseGateway.addBranch(franchiseId, branch);
-                });
+                        )))
+                        .orElseGet(() -> franchiseGateway.addBranch(franchiseId, branch))
+                );
     }
 }

@@ -7,14 +7,16 @@ import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
+import java.util.Optional;
+
 @RequiredArgsConstructor
 public class AddProductUseCase {
     private final FranchiseGateway gateway;
 
     public Mono<Franchise> apply(String franchiseId, String branchName, Product product) {
-        if (product.getStock() != null && product.getStock() < 0) {
-            return Mono.error(new ValidationException("El stock no puede ser negativo"));
-        }
-        return gateway.addProduct(franchiseId, branchName, product);
+        return Optional.ofNullable(product.getStock())
+                .filter(stock -> stock < 0)
+                .map(stock -> Mono.<Franchise>error(new ValidationException("El stock no puede ser negativo")))
+                .orElseGet(() -> gateway.addProduct(franchiseId, branchName, product));
     }
 }

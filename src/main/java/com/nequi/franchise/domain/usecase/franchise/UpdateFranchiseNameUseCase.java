@@ -6,14 +6,17 @@ import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
+import java.util.Optional;
+
 @RequiredArgsConstructor
 public class UpdateFranchiseNameUseCase {
     private final FranchiseGateway gateway;
 
     public Mono<Franchise> apply(String franchiseId, String newName) {
-        if (newName == null || newName.isBlank()) {
-            return Mono.error(new ValidationException("El nuevo nombre no puede estar vacío"));
-        }
-        return gateway.updateFranchiseName(franchiseId, newName);
+        return Optional.ofNullable(newName)
+                .filter(name -> !name.isBlank())
+                .map(name -> gateway.updateFranchiseName(franchiseId, name))
+                .orElseGet(() -> Mono.error(new ValidationException("El nuevo nombre no puede estar vacío")));
     }
 }
+
