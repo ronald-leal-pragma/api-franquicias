@@ -27,38 +27,50 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
     private final FranchiseDataRepository repository;
     private final ReactiveMongoTemplate mongoTemplate;
     private final FranchiseMapper mapper;
+    private final ResilienceService resilienceService;
 
     @Override
     public Mono<Franchise> saveFranchise(Franchise franchise) {
-        return Mono.just(franchise)
-                .map(mapper::toDocument)
-                .flatMap(repository::save)
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                Mono.just(franchise)
+                        .map(mapper::toDocument)
+                        .flatMap(repository::save)
+                        .map(mapper::toEntity),
+                "saveFranchise"
+        );
     }
 
     @Override
     public Mono<Franchise> findByName(String name) {
-        return repository.findByName(name)
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                repository.findByName(name)
+                        .map(mapper::toEntity),
+                "findByName"
+        );
     }
 
     @Override
     public Mono<Franchise> findById(String id) {
-        return repository.findById(id)
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                repository.findById(id)
+                        .map(mapper::toEntity),
+                "findById"
+        );
     }
 
     @Override
     public Mono<Franchise> addBranch(String franchiseId, Branch branch) {
         Query query = Query.query(Criteria.where("id").is(franchiseId));
-
         Update update = new Update().push("branches", mapper.toBranchDocument(branch));
 
-        return mongoTemplate.findAndModify(query, update,
-                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
-                        FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia no encontrada con ID: " + franchiseId)))
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                mongoTemplate.findAndModify(query, update,
+                                new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                                FranchiseDocument.class)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia no encontrada con ID: " + franchiseId)))
+                        .map(mapper::toEntity),
+                "addBranch"
+        );
     }
 
     @Override
@@ -67,14 +79,16 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
                 .and(BRANCHES_NAME).is(branchName));
 
         Update update = new Update().push("branches.$[elem].products", mapper.toProductDocument(product));
-
         update.filterArray(Criteria.where("elem.name").is(branchName));
 
-        return mongoTemplate.findAndModify(query, update,
-                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
-                        FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                mongoTemplate.findAndModify(query, update,
+                                new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                                FranchiseDocument.class)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
+                        .map(mapper::toEntity),
+                "addProduct"
+        );
     }
 
     @Override
@@ -84,11 +98,14 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
         Update update = new Update().pull("branches.$.products", Collections.singletonMap("name", productName));
 
-        return mongoTemplate.findAndModify(query, update,
-                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
-                        FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
-                .map(mapper::toEntity);
+        return resilienceService.executeWithResilience(
+                mongoTemplate.findAndModify(query, update,
+                                new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                                FranchiseDocument.class)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
+                        .map(mapper::toEntity),
+                "removeProduct"
+        );
     }
 
     @Override

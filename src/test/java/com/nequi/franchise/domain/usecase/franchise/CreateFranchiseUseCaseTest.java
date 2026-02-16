@@ -40,6 +40,8 @@ class CreateFranchiseUseCaseTest {
     @DisplayName("Debe crear una franquicia exitosamente cuando el nombre es valido")
     void shouldCreateFranchiseSuccessfully() {
         // Arrange
+        when(franchiseGateway.findByName(franchise.getName()))
+                .thenReturn(Mono.empty());
         when(franchiseGateway.saveFranchise(any(Franchise.class)))
                 .thenReturn(Mono.just(franchise));
 
@@ -51,6 +53,7 @@ class CreateFranchiseUseCaseTest {
                 .expectNext(franchise)
                 .verifyComplete();
 
+        verify(franchiseGateway, times(1)).findByName(franchise.getName());
         verify(franchiseGateway, times(1)).saveFranchise(franchise);
     }
 

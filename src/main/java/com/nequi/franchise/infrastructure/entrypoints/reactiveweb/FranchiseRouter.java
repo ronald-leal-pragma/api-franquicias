@@ -23,4 +23,10 @@ public class FranchiseRouter {
                 .andRoute(PATCH("/api/franchises/{franchiseId}/branches/{branchName}"), handler::updateBranchName)
                 .andRoute(PATCH("/api/franchises/{franchiseId}/branches/{branchName}/products/{productName}/rename"), handler::updateProductName);
     }
+
+    @Bean
+    public RouterFunction<ServerResponse> resilienceRoutes(ResilienceHandler handler) {
+        return route(GET("/api/monitoring/circuit-breaker/state"), handler::getCircuitBreakerState)
+                .andRoute(GET("/api/monitoring/circuit-breaker/metrics"), handler::getCircuitBreakerMetrics);
+    }
 }
