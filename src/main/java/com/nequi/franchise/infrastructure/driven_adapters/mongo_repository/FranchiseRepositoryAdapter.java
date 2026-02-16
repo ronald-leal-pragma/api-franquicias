@@ -22,6 +22,8 @@ import java.util.Comparator;
 @Repository
 @RequiredArgsConstructor
 public class FranchiseRepositoryAdapter implements FranchiseGateway {
+    private static final String FRANQUICIA_NO_ENCONTRADA = "Franquicia o sucursal no encontrada";
+    private static final String BRANCHES_NAME = "branches.name";
     private final FranchiseDataRepository repository;
     private final ReactiveMongoTemplate mongoTemplate;
     private final FranchiseMapper mapper;
@@ -31,6 +33,12 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return Mono.just(franchise)
                 .map(mapper::toDocument)
                 .flatMap(repository::save)
+                .map(mapper::toEntity);
+    }
+
+    @Override
+    public Mono<Franchise> findByName(String name) {
+        return repository.findByName(name)
                 .map(mapper::toEntity);
     }
 
@@ -56,7 +64,7 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
     @Override
     public Mono<Franchise> addProduct(String franchiseId, String branchName, Product product) {
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and("branches.name").is(branchName));
+                .and(BRANCHES_NAME).is(branchName));
 
         Update update = new Update().push("branches.$[elem].products", mapper.toProductDocument(product));
 
@@ -65,28 +73,28 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
                 .map(mapper::toEntity);
     }
 
     @Override
     public Mono<Franchise> removeProduct(String franchiseId, String branchName, String productName) {
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and("branches.name").is(branchName));
+                .and(BRANCHES_NAME).is(branchName));
 
         Update update = new Update().pull("branches.$.products", Collections.singletonMap("name", productName));
 
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
                 .map(mapper::toEntity);
     }
 
     @Override
     public Mono<Franchise> updateStock(String franchiseId, String branchName, String productName, Integer newStock) {
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and("branches.name").is(branchName)
+                .and(BRANCHES_NAME).is(branchName)
                 .and("branches.products.name").is(productName));
 
         Update update = new Update().set("branches.$[b].products.$[p].stock", newStock);
@@ -123,20 +131,20 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     public Mono<Franchise> updateBranchName(String franchiseId, String currentName, String newName) {
-        Query query = Query.query(Criteria.where("id").is(franchiseId).and("branches.name").is(currentName));
+        Query query = Query.query(Criteria.where("id").is(franchiseId).and(BRANCHES_NAME).is(currentName));
         Update update = new Update().set("branches.$.name", newName);
 
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Franquicia o sucursal no encontrada")))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException(FRANQUICIA_NO_ENCONTRADA)))
                 .map(mapper::toEntity);
     }
 
     @Override
     public Mono<Franchise> updateProductName(String franchiseId, String branchName, String currentName, String newName) {
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and("branches.name").is(branchName)
+                .and(BRANCHES_NAME).is(branchName)
                 .and("branches.products.name").is(currentName));
 
         Update update = new Update().set("branches.$[b].products.$[p].name", newName);

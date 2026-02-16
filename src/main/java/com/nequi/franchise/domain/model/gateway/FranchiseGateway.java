@@ -11,6 +11,8 @@ public interface FranchiseGateway {
 
     Mono<Franchise> saveFranchise(Franchise franchise);
 
+    Mono<Franchise> findByName(String name);
+
     Mono<Franchise> findById(String id);
 
     Mono<Franchise> addBranch(String franchiseId, Branch branch);

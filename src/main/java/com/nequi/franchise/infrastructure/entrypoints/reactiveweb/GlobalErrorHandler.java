@@ -6,6 +6,7 @@ import com.nequi.franchise.domain.exception.ResourceNotFoundException;
 import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -27,9 +28,27 @@ public class GlobalErrorHandler {
             case ResourceNotFoundException resourceNotFoundException ->
                     handleResourceNotFoundException(resourceNotFoundException, request);
             case BusinessException businessException -> handleBusinessException(businessException, request);
+            case IncorrectResultSizeDataAccessException incorrectResultSizeException ->
+                    handleIncorrectResultSizeException(incorrectResultSizeException, request);
             case DomainException domainException -> handleDomainException(domainException, request);
             default -> handleGenericException(request);
         };
+    }
+
+    private Mono<ServerResponse> handleIncorrectResultSizeException(IncorrectResultSizeDataAccessException ex, ServerRequest request) {
+        log.warn("Query returned non-unique result: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .code("BUSINESS_ERROR")
+                .message("Ya existe una franquicia con este nombre.")
+                .timestamp(LocalDateTime.now())
+                .path(request.path())
+                .build();
+
+        return ServerResponse
+                .status(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(errorResponse);
     }
 
     private Mono<ServerResponse> handleValidationException(ValidationException ex, ServerRequest request) {

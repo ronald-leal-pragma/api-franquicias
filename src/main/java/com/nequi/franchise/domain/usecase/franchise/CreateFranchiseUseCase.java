@@ -1,5 +1,6 @@
 package com.nequi.franchise.domain.usecase.franchise;
 
+import com.nequi.franchise.domain.exception.BusinessException;
 import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
@@ -15,6 +16,12 @@ public class CreateFranchiseUseCase {
             return Mono.error(new ValidationException("El nombre de la franquicia no puede estar vacío"));
         }
 
-        return franchiseGateway.saveFranchise(franchise);
+        return franchiseGateway.findByName(franchise.getName())
+                .flatMap(existingFranchise ->
+                        Mono.<Franchise>error(new BusinessException(
+                                "Ya existe una franquicia con el nombre: " + franchise.getName()
+                        ))
+                )
+                .switchIfEmpty(franchiseGateway.saveFranchise(franchise));
     }
 }

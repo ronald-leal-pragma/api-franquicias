@@ -7,6 +7,9 @@ target/
 *.jar
 *.war
 *.ear
+HELP.md
+.gradle
+!build/libs/*.jar
 
 # Gradle
 .gradle/
