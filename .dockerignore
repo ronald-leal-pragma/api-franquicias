@@ -1,0 +1,49 @@
+# .dockerignore
+# Excluir archivos innecesarios del contexto de Docker
+
+# Build artifacts
+build/
+target/
+*.jar
+*.war
+*.ear
+
+# Gradle
+.gradle/
+gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+src/test/
+
+# Logs
+logs/
+*.log
+
+# Temporal
+tmp/
+temp/
+

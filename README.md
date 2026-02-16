@@ -21,15 +21,16 @@ Estructura del proyecto
 -----------------------
 Puntos clave de la estructura de carpetas y archivos:
 
-- `build.gradle`, `settings.gradle.kts`, `gradlew` / `gradlew.bat` - configuración y wrapper de Gradle.
-- `src/main/java` - código fuente de la aplicación:
-  - `application/config` - clase principal y configuración de Spring Boot.
-  - `domain/model` - modelos de dominio (`user`, `gate`, etc.).
-  - `domain/usecase` - casos de uso de la lógica de negocio.
-  - `infrastructure/driven_adapters` - adaptadores para persistencia (por ejemplo MongoDB).
-  - `entrypoints/reactiveweb` - controladores/routers y adaptadores de entrada WebFlux.
-- `src/main/resources` - recursos y `application.properties`.
-- `src/test` - pruebas unitarias / de integración.
+```text
+src/main/java/com/nequi/franchise
+├── application                 # Configuración de Beans y Casos de Uso
+├── domain                      # Lógica de Negocio (Cero dependencias de Frameworks)
+│   ├── model                   # Entidades: Franchise, Branch, Product
+│   └── usecase                 # Reglas de negocio: AddBranch, UpdateStock, etc.
+└── infrastructure              # Adaptadores de entrada y salida
+    ├── driven_adapters         # Persistencia: MongoDB Repository & Adapter
+    └── entry_points            # API REST: RouterFunction & Handlers
+```
 
 Quick start (Windows / PowerShell)
 ---------------------------------
@@ -65,12 +66,6 @@ Arrancar con Docker Compose:
 docker compose up -d
 ```
 
-O con `docker run`:
-
-```powershell
-docker run -d --name api-franquicias-mongo -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=example mongo:6.0
-```
-
 2) Configurar la conexión a MongoDB
 
 Por defecto la aplicación no contiene credenciales en `application.properties`. Puedes especificar la URI de conexión mediante la variable de entorno `SPRING_DATA_MONGODB_URI` o editando `src/main/resources/application.properties` con una línea como:
@@ -92,28 +87,105 @@ spring.data.mongodb.uri=mongodb://root:example@localhost:27017/?authSource=admin
 .\gradlew.bat test
 ```
 
-Notas de desarrollo
--------------------
-- Usa ramas `feature/` para nuevas funcionalidades (por ejemplo `feature/user-domain`).
-- Añade configuraciones específicas de entorno en `application-{profile}.properties` y no subas credenciales.
+## Dockerización y Despliegue en AWS
 
-Variables de entorno recomendadas
---------------------------------
-- `SPRING_DATA_MONGODB_URI` - URI de conexión a MongoDB.
-- `SPRING_PROFILES_ACTIVE` - perfil de Spring (dev/test/prod).
+### Construcción de Imagen Docker
 
-Comandos útiles (Git)
----------------------
+#### Dockerfile Simple (Recomendado para desarrollo)
+
 ```powershell
-# Crear rama feature
-git checkout -b feature/nombre-de-la-caracteristica
+# 1. Compilar la aplicación
+.\gradlew.bat clean build -x test
 
-# Subir rama al remoto
-git push -u origin feature/nombre-de-la-caracteristica
+# 2. Construir imagen Docker
+docker build -t api-franquicias:1.0.0 .
+
+# 3. Ejecutar contenedor
+docker run -p 8080:8080 \
+  -e SPRING_DATA_MONGODB_URI=mongodb://host.docker.internal:27017/franchise_db \
+  api-franquicias:1.0.0
 ```
 
-FAQ — ejecución local
----------------------
-- ¿Qué pasa si no tengo Docker? Puedes apuntar la aplicación a un MongoDB remoto o local ya instalado modificando `spring.data.mongodb.uri`.
-- ¿Qué versión de MongoDB usar? Se recomienda usar la 6.x o la versión que el equipo defina; actualmente no está fijada en `build.gradle`.
+---
 
+## ☁️ Despliegue en AWS ECR (Elastic Container Registry)
+
+### Prerrequisitos
+
+1. **AWS CLI instalado y configurado**:
+   ```powershell
+   # Instalar AWS CLI
+   winget install Amazon.AWSCLI
+   
+   # Configurar credenciales
+   aws configure
+   ```
+
+2. **Variables de entorno necesarias**:
+   ```powershell
+   # ID de tu cuenta AWS (12 dígitos)
+   $env:AWS_ACCOUNT_ID = "123456789012"
+   
+   # Región de AWS
+   $env:AWS_REGION = "us-east-1"
+   
+   # Nombre del repositorio ECR
+   $env:ECR_REPOSITORY = "api-franquicias"
+   ```
+
+### Despliegue Manual Paso a Paso
+
+Si prefieres hacerlo manualmente:
+
+```powershell
+# 1. Compilar la aplicación
+.\gradlew.bat clean build -x test
+
+# 2. Construir imagen Docker
+docker build -t api-franquicias:1.0.0 .
+
+# 3. Login a AWS ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+
+# 4. Crear repositorio ECR (solo la primera vez)
+aws ecr create-repository `
+  --repository-name api-franquicias `
+  --region us-east-1 `
+  --image-scanning-configuration scanOnPush=true `
+  --encryption-configuration encryptionType=AES256
+
+# 5. Etiquetar imagen para ECR
+$ECR_URI = "123456789012.dkr.ecr.us-east-1.amazonaws.com/api-franquicias"
+docker tag api-franquicias:1.0.0 "$ECR_URI:1.0.0"
+docker tag api-franquicias:1.0.0 "$ECR_URI:latest"
+
+# 6. Subir imagen a ECR
+docker push "$ECR_URI:1.0.0"
+docker push "$ECR_URI:latest"
+```
+
+## 🚀 Despliegue en Servicios AWS
+
+### AWS ECS (Elastic Container Service)
+
+#### Comandos ECS:
+
+```powershell
+# Registrar task definition
+aws ecs register-task-definition --cli-input-json file://task-definition.json
+
+# Crear servicio ECS
+aws ecs create-service `
+  --cluster mi-cluster `
+  --service-name api-franquicias `
+  --task-definition api-franquicias:1 `
+  --desired-count 2 `
+  --launch-type FARGATE `
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
+
+# Actualizar servicio con nueva imagen
+aws ecs update-service `
+  --cluster mi-cluster `
+  --service api-franquicias `
+  --force-new-deployment
+```
