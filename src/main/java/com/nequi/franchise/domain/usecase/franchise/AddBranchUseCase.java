@@ -5,9 +5,12 @@ import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Branch;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
+import com.nequi.franchise.domain.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -24,11 +27,22 @@ public class AddBranchUseCase {
                         .filter(b -> b.getName().equalsIgnoreCase(branch.getName()))
                         .findFirst()
                         .map(existingBranch -> Mono.<Franchise>error(new BusinessException(
-                                "Ya existe una sucursal con el nombre '" + branch.getName() + "' en esta franquicia"
-                        )))
-                        .orElseGet(() -> franchiseGateway.addBranch(franchiseId, branch))
+                                "Ya existe una sucursal con el nombre '" + branch.getName() + "' en esta franquicia")))
+                        .orElseGet(() -> {
+                            // Generar branchId si no existe
+                            Optional.ofNullable(branch.getBranchId())
+                                    .filter(id -> !id.isEmpty())
+                                    .ifPresentOrElse(
+                                            id -> {},
+                                            () -> branch.setBranchId(IdGenerator.generateId())
+                                    );
+
+                            return franchiseGateway.addBranch(franchiseId, branch);
+                        })
                 )
-                .doOnSuccess(updated -> log.info("Method: AddBranchUseCase.apply - Output: franchiseId={}, branchName={}, totalBranches={}", franchiseId, branch.getName(), updated.getBranches().size()))
-                .doOnError(error -> log.error("Method: AddBranchUseCase.apply - Error: franchiseId={}, branchName={}, message={}", franchiseId, branch.getName(), error.getMessage(), error));
+                .doOnSuccess(updated -> log.info("Method: AddBranchUseCase.apply - Output: franchiseId={}, branchId={}, branchName={}, totalBranches={}",
+                        franchiseId, branch.getBranchId(), branch.getName(), updated.getBranches().size()))
+                .doOnError(error -> log.error("Method: AddBranchUseCase.apply - Error: franchiseId={}, branchName={}, message={}",
+                        franchiseId, branch.getName(), error.getMessage(), error));
     }
 }

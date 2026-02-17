@@ -71,10 +71,11 @@ class BranchTest {
         products.add(Product.builder().name("Producto 1").stock(50).build());
 
         // Act
-        Branch branch = new Branch("Sucursal Sur", products);
+        Branch branch = new Branch("branch-123", "Sucursal Sur", products);
 
         // Assert
         assertNotNull(branch);
+        assertEquals("branch-123", branch.getBranchId());
         assertEquals("Sucursal Sur", branch.getName());
         assertEquals(1, branch.getProducts().size());
     }

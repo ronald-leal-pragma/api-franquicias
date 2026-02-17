@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Representa un producto en el inventario de una sucursal")
 public class Product {
 
+    @Schema(description = "Identificador único del producto", example = "507f1f77bcf86cd799439012")
+    private String productId;
+
     @Schema(description = "Nombre del producto", example = "Laptop Dell XPS 15")
     private String name;
 

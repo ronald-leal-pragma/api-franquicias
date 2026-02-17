@@ -69,10 +69,11 @@ class ProductTest {
     @DisplayName("Debe crear un producto usando constructor con todos los argumentos")
     void shouldCreateProductWithAllArgsConstructor() {
         // Act
-        Product product = new Product("Producto Completo", 250);
+        Product product = new Product("product-456", "Producto Completo", 250);
 
         // Assert
         assertNotNull(product);
+        assertEquals("product-456", product.getProductId());
         assertEquals("Producto Completo", product.getName());
         assertEquals(250, product.getStock());
     }

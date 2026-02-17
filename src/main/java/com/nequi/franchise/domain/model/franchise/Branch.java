@@ -16,6 +16,9 @@ import java.util.List;
 @Schema(description = "Representa una sucursal de la franquicia")
 public class Branch {
 
+    @Schema(description = "Identificador único de la sucursal", example = "507f1f77bcf86cd799439011")
+    private String branchId;
+
     @Schema(description = "Nombre de la sucursal", example = "Sucursal Centro")
     private String name;
 

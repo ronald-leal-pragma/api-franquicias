@@ -6,6 +6,7 @@ import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.franchise.Product;
 import com.nequi.franchise.domain.usecase.franchise.*;
 import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.dto.*;
+import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.helper.FranchiseIdResolver;
 import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.mapper.FranchiseDtoMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +26,7 @@ import reactor.test.StepVerifier;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +56,8 @@ class FranchiseHandlerTest {
     private GlobalErrorHandler errorHandler;
     @Mock
     private FranchiseDtoMapper mapper;
+    @Mock
+    private FranchiseIdResolver idResolver;
 
     @InjectMocks
     private FranchiseHandler handler;
@@ -65,11 +69,13 @@ class FranchiseHandlerTest {
     @BeforeEach
     void setUp() {
         product = Product.builder()
+                .productId("product-123")
                 .name("Laptop Dell")
                 .stock(100)
                 .build();
 
         branch = Branch.builder()
+                .branchId("branch-456")
                 .name("Sucursal Centro")
                 .products(new ArrayList<>(Collections.singletonList(product)))
                 .build();
@@ -158,7 +164,8 @@ class FranchiseHandlerTest {
                 .body(Mono.just(request));
 
         when(mapper.toProduct(request)).thenReturn(newProduct);
-        when(addProductUseCase.apply("123", "Sucursal Centro", newProduct)).thenReturn(Mono.just(franchise));
+        when(idResolver.resolveBranchId("123", "Sucursal Centro")).thenReturn(Mono.just("branch-456"));
+        when(addProductUseCase.apply("123", "branch-456", newProduct)).thenReturn(Mono.just(franchise));
 
         // Act
         Mono<ServerResponse> result = handler.addProduct(serverRequest);
@@ -169,7 +176,8 @@ class FranchiseHandlerTest {
                 .verifyComplete();
 
         verify(mapper).toProduct(request);
-        verify(addProductUseCase).apply("123", "Sucursal Centro", newProduct);
+        verify(idResolver).resolveBranchId("123", "Sucursal Centro");
+        verify(addProductUseCase).apply("123", "branch-456", newProduct);
     }
 
     @Test
@@ -182,7 +190,9 @@ class FranchiseHandlerTest {
                 .pathVariable("productName", "Laptop Dell")
                 .build();
 
-        when(removeProductUseCase.apply("123", "Sucursal Centro", "Laptop Dell"))
+        when(idResolver.resolveBranchId("123", "Sucursal Centro")).thenReturn(Mono.just("branch-456"));
+        when(idResolver.resolveProductId("123", "branch-456", "Laptop Dell")).thenReturn(Mono.just("product-123"));
+        when(removeProductUseCase.apply("123", "branch-456", "product-123"))
                 .thenReturn(Mono.just(franchise));
 
         // Act
@@ -193,7 +203,9 @@ class FranchiseHandlerTest {
                 .expectNextMatches(response -> response.statusCode() == HttpStatus.OK)
                 .verifyComplete();
 
-        verify(removeProductUseCase).apply("123", "Sucursal Centro", "Laptop Dell");
+        verify(idResolver).resolveBranchId("123", "Sucursal Centro");
+        verify(idResolver).resolveProductId("123", "branch-456", "Laptop Dell");
+        verify(removeProductUseCase).apply("123", "branch-456", "product-123");
     }
 
     @Test
@@ -209,7 +221,9 @@ class FranchiseHandlerTest {
                 .pathVariable("productName", "Laptop Dell")
                 .body(Mono.just(request));
 
-        when(updateStockUseCase.apply("123", "Sucursal Centro", "Laptop Dell", 200))
+        when(idResolver.resolveBranchId("123", "Sucursal Centro")).thenReturn(Mono.just("branch-456"));
+        when(idResolver.resolveProductId("123", "branch-456", "Laptop Dell")).thenReturn(Mono.just("product-123"));
+        when(updateStockUseCase.apply("123", "branch-456", "product-123", 200))
                 .thenReturn(Mono.just(franchise));
 
         // Act
@@ -220,7 +234,9 @@ class FranchiseHandlerTest {
                 .expectNextMatches(response -> response.statusCode() == HttpStatus.OK)
                 .verifyComplete();
 
-        verify(updateStockUseCase).apply("123", "Sucursal Centro", "Laptop Dell", 200);
+        verify(idResolver).resolveBranchId("123", "Sucursal Centro");
+        verify(idResolver).resolveProductId("123", "branch-456", "Laptop Dell");
+        verify(updateStockUseCase).apply("123", "branch-456", "product-123", 200);
     }
 
     @Test
@@ -285,7 +301,8 @@ class FranchiseHandlerTest {
                 .pathVariable("branchName", "Sucursal Centro")
                 .body(Mono.just(request));
 
-        when(updateBranchNameUseCase.apply("123", "Sucursal Centro", "Sucursal Actualizada"))
+        when(idResolver.resolveBranchId("123", "Sucursal Centro")).thenReturn(Mono.just("branch-456"));
+        when(updateBranchNameUseCase.apply("123", "branch-456", "Sucursal Actualizada"))
                 .thenReturn(Mono.just(franchise));
 
         // Act
@@ -296,7 +313,8 @@ class FranchiseHandlerTest {
                 .expectNextMatches(response -> response.statusCode() == HttpStatus.OK)
                 .verifyComplete();
 
-        verify(updateBranchNameUseCase).apply("123", "Sucursal Centro", "Sucursal Actualizada");
+        verify(idResolver).resolveBranchId("123", "Sucursal Centro");
+        verify(updateBranchNameUseCase).apply("123", "branch-456", "Sucursal Actualizada");
     }
 
     @Test
@@ -312,7 +330,9 @@ class FranchiseHandlerTest {
                 .pathVariable("productName", "Laptop Dell")
                 .body(Mono.just(request));
 
-        when(updateProductNameUseCase.apply("123", "Sucursal Centro", "Laptop Dell", "Laptop HP"))
+        when(idResolver.resolveBranchId("123", "Sucursal Centro")).thenReturn(Mono.just("branch-456"));
+        when(idResolver.resolveProductId("123", "branch-456", "Laptop Dell")).thenReturn(Mono.just("product-123"));
+        when(updateProductNameUseCase.apply("123", "branch-456", "product-123", "Laptop HP"))
                 .thenReturn(Mono.just(franchise));
 
         // Act
@@ -323,7 +343,9 @@ class FranchiseHandlerTest {
                 .expectNextMatches(response -> response.statusCode() == HttpStatus.OK)
                 .verifyComplete();
 
-        verify(updateProductNameUseCase).apply("123", "Sucursal Centro", "Laptop Dell", "Laptop HP");
+        verify(idResolver).resolveBranchId("123", "Sucursal Centro");
+        verify(idResolver).resolveProductId("123", "branch-456", "Laptop Dell");
+        verify(updateProductNameUseCase).apply("123", "branch-456", "product-123", "Laptop HP");
     }
 
     @Test

@@ -7,7 +7,6 @@ import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.franchise.Product;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
@@ -18,19 +17,17 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
 import java.util.Comparator;
 
 /**
- * Adaptador del repositorio de franquicias con Circuit Breaker usando anotaciones.
- * Implementación con @CircuitBreaker de forma declarativa para protección contra fallos.
+ * Adaptador agnóstico a la tecnología de persistencia.
+ * Usa branchId y productId para operaciones, permitiendo fácil migración a bases relacionales.
  */
 @Slf4j
 @Repository
 @RequiredArgsConstructor
 public class FranchiseRepositoryAdapter implements FranchiseGateway {
     private static final String FRANQUICIA_NO_ENCONTRADA = "Franquicia o sucursal no encontrada";
-    private static final String BRANCHES_NAME = "branches.name";
     private static final String SERVICE_OPERATION_MONGODB = "mongodb";
 
     private final FranchiseDataRepository repository;
@@ -66,7 +63,8 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
     public Mono<Franchise> addBranch(String franchiseId, Branch branch) {
-        log.debug("Agregando sucursal '{}' a franquicia ID: {}", branch.getName(), franchiseId);
+        log.debug("Agregando sucursal branchId='{}' nombre='{}' a franquicia ID: {}",
+                branch.getBranchId(), branch.getName(), franchiseId);
         Query query = Query.query(Criteria.where("id").is(franchiseId));
         Update update = new Update().push("branches", mapper.toBranchDocument(branch));
 
@@ -79,14 +77,16 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
-    public Mono<Franchise> addProduct(String franchiseId, String branchName, Product product) {
-        log.debug("Agregando producto '{}' a sucursal '{}' en franquicia ID: {}",
-                product.getName(), branchName, franchiseId);
+    public Mono<Franchise> addProduct(String franchiseId, String branchId, Product product) {
+        log.debug("Agregando producto productId='{}' nombre='{}' a sucursal branchId='{}' en franquicia ID: {}",
+                product.getProductId(), product.getName(), branchId, franchiseId);
+
+        // Usar branchId en lugar de nombre para búsqueda
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and(BRANCHES_NAME).is(branchName));
+                .and("branches.branchId").is(branchId));
 
         Update update = new Update().push("branches.$[elem].products", mapper.toProductDocument(product));
-        update.filterArray(Criteria.where("elem.name").is(branchName));
+        update.filterArray(Criteria.where("elem.branchId").is(branchId));
 
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
@@ -97,13 +97,18 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
-    public Mono<Franchise> removeProduct(String franchiseId, String branchName, String productName) {
-        log.debug("Eliminando producto '{}' de sucursal '{}' en franquicia ID: {}",
-                productName, branchName, franchiseId);
-        Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and(BRANCHES_NAME).is(branchName));
+    public Mono<Franchise> removeProduct(String franchiseId, String branchId, String productId) {
+        log.debug("Eliminando producto productId='{}' de sucursal branchId='{}' en franquicia ID: {}",
+                productId, branchId, franchiseId);
 
-        Update update = new Update().pull("branches.$.products", Collections.singletonMap("name", productName));
+        // Usar branchId para búsqueda
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.branchId").is(branchId));
+
+        // Eliminar producto por productId
+        Update update = new Update().pull("branches.$[elem].products",
+                Query.query(Criteria.where("productId").is(productId)));
+        update.filterArray(Criteria.where("elem.branchId").is(branchId));
 
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
@@ -114,16 +119,24 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
-    public Mono<Franchise> updateStock(String franchiseId, String branchName, String productName, Integer newStock) {
-        log.debug("Actualizando stock de producto '{}' a {} en sucursal '{}', franquicia ID: {}",
-                productName, newStock, branchName, franchiseId);
+    public Mono<Franchise> updateStock(String franchiseId, String branchId, String productId, Integer newStock) {
+        log.debug("Actualizando stock de producto productId='{}' a {} en sucursal branchId='{}', franquicia ID: {}",
+                productId, newStock, branchId, franchiseId);
+
+        // Usar branchId y productId para búsqueda
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and(BRANCHES_NAME).is(branchName)
-                .and("branches.products.name").is(productName));
+                .and("branches.branchId").is(branchId)
+                .and("branches.products.productId").is(productId));
 
         Update update = new Update().set("branches.$[b].products.$[p].stock", newStock);
+        update.filterArray(Criteria.where("b.branchId").is(branchId));
+        update.filterArray(Criteria.where("p.productId").is(productId));
 
-        return getFranchiseMono(branchName, productName, query, update);
+        return mongoTemplate.findAndModify(query, update,
+                        new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
+                        FranchiseDocument.class)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Producto no encontrado")))
+                .map(mapper::toEntity);
     }
 
     @Override
@@ -159,10 +172,13 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
-    public Mono<Franchise> updateBranchName(String franchiseId, String currentName, String newName) {
-        log.debug("Actualizando nombre de sucursal '{}' a '{}' en franquicia ID: {}",
-                currentName, newName, franchiseId);
-        Query query = Query.query(Criteria.where("id").is(franchiseId).and(BRANCHES_NAME).is(currentName));
+    public Mono<Franchise> updateBranchName(String franchiseId, String branchId, String newName) {
+        log.debug("Actualizando nombre de sucursal branchId='{}' a '{}' en franquicia ID: {}",
+                branchId, newName, franchiseId);
+
+        // Usar branchId para búsqueda
+        Query query = Query.query(Criteria.where("id").is(franchiseId)
+                .and("branches.branchId").is(branchId));
         Update update = new Update().set("branches.$.name", newName);
 
         return mongoTemplate.findAndModify(query, update,
@@ -174,28 +190,52 @@ public class FranchiseRepositoryAdapter implements FranchiseGateway {
 
     @Override
     @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
-    public Mono<Franchise> updateProductName(String franchiseId, String branchName, String currentName, String newName) {
-        log.debug("Actualizando nombre de producto '{}' a '{}' en sucursal '{}', franquicia ID: {}",
-                currentName, newName, branchName, franchiseId);
+    public Mono<Franchise> updateProductName(String franchiseId, String branchId, String productId, String newName) {
+        log.debug("Actualizando nombre de producto productId='{}' a '{}' en sucursal branchId='{}', franquicia ID: {}",
+                productId, newName, branchId, franchiseId);
+
+        // Usar branchId y productId para búsqueda
         Query query = Query.query(Criteria.where("id").is(franchiseId)
-                .and(BRANCHES_NAME).is(branchName)
-                .and("branches.products.name").is(currentName));
+                .and("branches.branchId").is(branchId)
+                .and("branches.products.productId").is(productId));
 
         Update update = new Update().set("branches.$[b].products.$[p].name", newName);
-
-        return getFranchiseMono(branchName, currentName, query, update);
-    }
-
-    @NonNull
-    private Mono<Franchise> getFranchiseMono(String branchName, String currentName, Query query, Update update) {
-        update.filterArray(Criteria.where("b.name").is(branchName));
-        update.filterArray(Criteria.where("p.name").is(currentName));
+        update.filterArray(Criteria.where("b.branchId").is(branchId));
+        update.filterArray(Criteria.where("p.productId").is(productId));
 
         return mongoTemplate.findAndModify(query, update,
                         new org.springframework.data.mongodb.core.FindAndModifyOptions().returnNew(true),
                         FranchiseDocument.class)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Producto no encontrado")))
                 .map(mapper::toEntity);
+    }
+
+    @Override
+    @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
+    public Mono<Branch> findBranchById(String franchiseId, String branchId) {
+        log.debug("Buscando sucursal branchId='{}' en franquicia ID: {}", branchId, franchiseId);
+        return repository.findById(franchiseId)
+                .map(mapper::toEntity)
+                .flatMap(franchise -> franchise.getBranches().stream()
+                        .filter(b -> b.getBranchId().equals(branchId))
+                        .findFirst()
+                        .map(Mono::just)
+                        .orElse(Mono.error(new ResourceNotFoundException("Sucursal no encontrada con branchId: " + branchId)))
+                );
+    }
+
+    @Override
+    @CircuitBreaker(name = SERVICE_OPERATION_MONGODB)
+    public Mono<Product> findProductById(String franchiseId, String branchId, String productId) {
+        log.debug("Buscando producto productId='{}' en sucursal branchId='{}', franquicia ID: {}",
+                productId, branchId, franchiseId);
+        return findBranchById(franchiseId, branchId)
+                .flatMap(branch -> branch.getProducts().stream()
+                        .filter(p -> p.getProductId().equals(productId))
+                        .findFirst()
+                        .map(Mono::just)
+                        .orElse(Mono.error(new ResourceNotFoundException("Producto no encontrado con productId: " + productId)))
+                );
     }
 }
 

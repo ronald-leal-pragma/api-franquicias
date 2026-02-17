@@ -14,16 +14,15 @@ import java.util.Optional;
 public class UpdateProductNameUseCase {
     private final FranchiseGateway gateway;
 
-    public Mono<Franchise> apply(String franchiseId, String branchName, String currentName, String newName) {
-        log.info("Method: UpdateProductNameUseCase.apply - Input: franchiseId={}, branchName={}, currentName={}, newName={}", franchiseId, branchName, currentName, newName);
+    public Mono<Franchise> apply(String franchiseId, String branchId, String productId, String newName) {
+        log.info("Method: UpdateProductNameUseCase.apply - Input: franchiseId={}, branchId={}, productId={}, newName={}", franchiseId, branchId, productId, newName);
 
         return Optional.ofNullable(newName)
                 .filter(name -> !name.isBlank())
-                .map(name -> gateway.updateProductName(franchiseId, branchName, currentName, name)
-                        .doOnSuccess(updated -> log.info("Method: UpdateProductNameUseCase.apply - Output: franchiseId={}, branchName={}, currentName={}, newName={}", franchiseId, branchName, currentName, newName))
-                        .doOnError(error -> log.error("Method: UpdateProductNameUseCase.apply - Error: franchiseId={}, branchName={}, currentName={}, newName={}, message={}", franchiseId, branchName, currentName, newName, error.getMessage(), error))
+                .map(name -> gateway.updateProductName(franchiseId, branchId, productId, name)
+                        .doOnSuccess(updated -> log.info("Method: UpdateProductNameUseCase.apply - Output: franchiseId={}, branchId={}, productId={}, newName={}", franchiseId, branchId, productId, newName))
+                        .doOnError(error -> log.error("Method: UpdateProductNameUseCase.apply - Error: franchiseId={}, branchId={}, productId={}, newName={}, message={}", franchiseId, branchId, productId, newName, error.getMessage(), error))
                 )
                 .orElseGet(() -> Mono.error(new ValidationException("El nuevo nombre no puede estar vacío")));
     }
 }
-

@@ -11,11 +11,11 @@ import reactor.core.publisher.Mono;
 public class RemoveProductUseCase {
     private final FranchiseGateway gateway;
 
-    public Mono<Franchise> apply(String franchiseId, String branchName, String productName) {
-        log.info("Method: RemoveProductUseCase.apply - Input: franchiseId={}, branchName={}, productName={}", franchiseId, branchName, productName);
+    public Mono<Franchise> apply(String franchiseId, String branchId, String productId) {
+        log.info("Method: RemoveProductUseCase.apply - Input: franchiseId={}, branchId={}, productId={}", franchiseId, branchId, productId);
 
-        return gateway.removeProduct(franchiseId, branchName, productName)
-                .doOnSuccess(updated -> log.info("Method: RemoveProductUseCase.apply - Output: franchiseId={}, branchName={}, productName={} removed", franchiseId, branchName, productName))
-                .doOnError(error -> log.error("Method: RemoveProductUseCase.apply - Error: franchiseId={}, branchName={}, productName={}, message={}", franchiseId, branchName, productName, error.getMessage(), error));
+        return gateway.removeProduct(franchiseId, branchId, productId)
+                .doOnSuccess(updated -> log.info("Method: RemoveProductUseCase.apply - Output: franchiseId={}, branchId={}, productId={} removed", franchiseId, branchId, productId))
+                .doOnError(error -> log.error("Method: RemoveProductUseCase.apply - Error: franchiseId={}, branchId={}, productId={}, message={}", franchiseId, branchId, productId, error.getMessage(), error));
     }
 }

@@ -1,8 +1,8 @@
 package com.nequi.franchise.infrastructure.entrypoints.reactiveweb;
 
-import com.nequi.franchise.domain.model.franchise.BranchProductResult;
 import com.nequi.franchise.domain.usecase.franchise.*;
 import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.dto.*;
+import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.helper.FranchiseIdResolver;
 import com.nequi.franchise.infrastructure.entrypoints.reactiveweb.mapper.FranchiseDtoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -34,6 +35,7 @@ public class FranchiseHandler {
     private final UpdateProductNameUseCase updateProductNameUseCase;
     private final GlobalErrorHandler errorHandler;
     private final FranchiseDtoMapper mapper;
+    private final FranchiseIdResolver idResolver;
 
     public Mono<ServerResponse> createFranchise(ServerRequest request) {
         return request.bodyToMono(FranchiseRequest.class)
@@ -72,8 +74,12 @@ public class FranchiseHandler {
         return request.bodyToMono(AddProductRequest.class)
                 .doOnSubscribe(s -> log.info("Method: addProduct - Input: franchiseId={}, branchName={}, path={}", franchiseId, branchName, request.path()))
                 .doOnNext(dto -> log.info("Method: addProduct - Request body: {}", dto))
-                .map(mapper::toProduct)
-                .flatMap(product -> addProductUseCase.apply(franchiseId, branchName, product))
+                .flatMap(dto -> idResolver.resolveBranchId(franchiseId, branchName)
+                        .flatMap(branchId -> {
+                            var product = mapper.toProduct(dto);
+                            return addProductUseCase.apply(franchiseId, branchId, product);
+                        })
+                )
                 .flatMap(saved -> ServerResponse.ok().bodyValue(saved))
                 .doOnSuccess(response -> log.info("Method: addProduct - Output: status=200, franchiseId={}, branchName={}", franchiseId, branchName))
                 .doOnError(error -> log.error("Method: addProduct - Error: franchiseId={}, branchName={}, message={}", franchiseId, branchName, error.getMessage(), error))
@@ -85,9 +91,11 @@ public class FranchiseHandler {
         String branchName = request.pathVariable(BRANCH_NAME);
         String productName = request.pathVariable(PRODUCT_NAME);
 
-        return Mono.just(productName)
+        return idResolver.resolveBranchId(franchiseId, branchName)
                 .doOnSubscribe(s -> log.info("Method: removeProduct - Input: franchiseId={}, branchName={}, productName={}, path={}", franchiseId, branchName, productName, request.path()))
-                .flatMap(pn -> removeProductUseCase.apply(franchiseId, branchName, pn))
+                .flatMap(branchId -> idResolver.resolveProductId(franchiseId, branchId, productName)
+                        .flatMap(productId -> removeProductUseCase.apply(franchiseId, branchId, productId))
+                )
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
                 .doOnSuccess(response -> log.info("Method: removeProduct - Output: status=200, franchiseId={}, branchName={}, productName={}", franchiseId, branchName, productName))
                 .doOnError(error -> log.error("Method: removeProduct - Error: franchiseId={}, branchName={}, productName={}, message={}", franchiseId, branchName, productName, error.getMessage(), error))
@@ -102,7 +110,11 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateStockRequest.class)
                 .doOnSubscribe(s -> log.info("Method: updateStock - Input: franchiseId={}, branchName={}, productName={}, path={}", franchiseId, branchName, productName, request.path()))
                 .doOnNext(dto -> log.info("Method: updateStock - Request body: {}", dto))
-                .flatMap(dto -> updateStockUseCase.apply(franchiseId, branchName, productName, dto.getStock()))
+                .flatMap(dto -> idResolver.resolveBranchId(franchiseId, branchName)
+                        .flatMap(branchId -> idResolver.resolveProductId(franchiseId, branchId, productName)
+                                .flatMap(productId -> updateStockUseCase.apply(franchiseId, branchId, productId, dto.getStock()))
+                        )
+                )
                 .flatMap(updatedFranchise -> ServerResponse.ok().bodyValue(updatedFranchise))
                 .doOnSuccess(response -> log.info("Method: updateStock - Output: status=200, franchiseId={}, branchName={}, productName={}", franchiseId, branchName, productName))
                 .doOnError(error -> log.error("Method: updateStock - Error: franchiseId={}, branchName={}, productName={}, message={}", franchiseId, branchName, productName, error.getMessage(), error))
@@ -114,9 +126,13 @@ public class FranchiseHandler {
 
         log.info("Method: getMaxStockProducts - Input: franchiseId={}, path={}", franchiseId, request.path());
 
-        return ServerResponse.ok()
-                .body(findMaxStockUseCase.apply(franchiseId), BranchProductResult.class)
-                .switchIfEmpty(ServerResponse.notFound().build())
+        return findMaxStockUseCase.apply(franchiseId)
+                .collectList()
+                .flatMap(list -> Optional.of(list)
+                        .filter(l -> !l.isEmpty())
+                        .map(l -> ServerResponse.ok().bodyValue(l))
+                        .orElseGet(() -> ServerResponse.notFound().build())
+                )
                 .doOnSuccess(response -> log.info("Method: getMaxStockProducts - Output: status={}, franchiseId={}", response != null ? response.statusCode() : "404", franchiseId))
                 .doOnError(error -> log.error("Method: getMaxStockProducts - Error: franchiseId={}, message={}", franchiseId, error.getMessage(), error))
                 .onErrorResume(error -> errorHandler.handleError(error, request));
@@ -137,10 +153,13 @@ public class FranchiseHandler {
     public Mono<ServerResponse> updateBranchName(ServerRequest request) {
         String id = request.pathVariable(FRANCHISE_ID);
         String branchName = request.pathVariable(BRANCH_NAME);
+
         return request.bodyToMono(UpdateNameRequest.class)
                 .doOnSubscribe(s -> log.info("Method: updateBranchName - Input: franchiseId={}, branchName={}, path={}", id, branchName, request.path()))
                 .doOnNext(dto -> log.info("Method: updateBranchName - Request body: {}", dto))
-                .flatMap(dto -> updateBranchNameUseCase.apply(id, branchName, dto.getName()))
+                .flatMap(dto -> idResolver.resolveBranchId(id, branchName)
+                        .flatMap(branchId -> updateBranchNameUseCase.apply(id, branchId, dto.getName()))
+                )
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
                 .doOnSuccess(response -> log.info("Method: updateBranchName - Output: status=200, franchiseId={}, branchName={}", id, branchName))
                 .doOnError(error -> log.error("Method: updateBranchName - Error: franchiseId={}, branchName={}, message={}", id, branchName, error.getMessage(), error))
@@ -155,7 +174,11 @@ public class FranchiseHandler {
         return request.bodyToMono(UpdateNameRequest.class)
                 .doOnSubscribe(s -> log.info("Method: updateProductName - Input: franchiseId={}, branchName={}, productName={}, path={}", id, branchName, productName, request.path()))
                 .doOnNext(dto -> log.info("Method: updateProductName - Request body: {}", dto))
-                .flatMap(dto -> updateProductNameUseCase.apply(id, branchName, productName, dto.getName()))
+                .flatMap(dto -> idResolver.resolveBranchId(id, branchName)
+                        .flatMap(branchId -> idResolver.resolveProductId(id, branchId, productName)
+                                .flatMap(productId -> updateProductNameUseCase.apply(id, branchId, productId, dto.getName()))
+                        )
+                )
                 .flatMap(f -> ServerResponse.ok().bodyValue(f))
                 .doOnSuccess(response -> log.info("Method: updateProductName - Output: status=200, franchiseId={}, branchName={}, productName={}", id, branchName, productName))
                 .doOnError(error -> log.error("Method: updateProductName - Error: franchiseId={}, branchName={}, productName={}, message={}", id, branchName, productName, error.getMessage(), error))

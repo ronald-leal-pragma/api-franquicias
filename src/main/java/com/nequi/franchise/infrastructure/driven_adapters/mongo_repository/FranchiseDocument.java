@@ -3,6 +3,7 @@ package com.nequi.franchise.infrastructure.driven_adapters.mongo_repository;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
@@ -19,6 +20,8 @@ public class FranchiseDocument {
     @Data
     @NoArgsConstructor
     public static class BranchDocument {
+        @Indexed
+        private String branchId;  // ID único para búsquedas eficientes
         private String name;
         private List<ProductDocument> products;
     }
@@ -26,6 +29,8 @@ public class FranchiseDocument {
     @Data
     @NoArgsConstructor
     public static class ProductDocument {
+        @Indexed
+        private String productId;  // ID único para búsquedas eficientes
         private String name;
         private Integer stock;
     }
