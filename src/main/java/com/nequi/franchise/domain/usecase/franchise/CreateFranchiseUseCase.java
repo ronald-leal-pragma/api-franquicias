@@ -5,15 +5,19 @@ import com.nequi.franchise.domain.exception.ValidationException;
 import com.nequi.franchise.domain.model.franchise.Franchise;
 import com.nequi.franchise.domain.model.gateway.FranchiseGateway;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 import java.util.Optional;
 
+@Slf4j
 @RequiredArgsConstructor
 public class CreateFranchiseUseCase {
     private final FranchiseGateway franchiseGateway;
 
     public Mono<Franchise> apply(Franchise franchise) {
+        log.info("Method: CreateFranchiseUseCase.apply - Input: franchise={}", franchise);
+
         return Optional.ofNullable(franchise.getName())
                 .map(String::trim)
                 .filter(name -> !name.isEmpty())
@@ -24,6 +28,8 @@ public class CreateFranchiseUseCase {
                                 ))
                         )
                         .switchIfEmpty(franchiseGateway.saveFranchise(franchise))
+                        .doOnSuccess(saved -> log.info("Method: CreateFranchiseUseCase.apply - Output: franchiseId={}, name={}", saved.getId(), saved.getName()))
+                        .doOnError(error -> log.error("Method: CreateFranchiseUseCase.apply - Error: franchiseName={}, message={}", name, error.getMessage(), error))
                 )
                 .orElseGet(() -> Mono.error(new ValidationException("El nombre de la franquicia no puede estar vacío")));
     }
